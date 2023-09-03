@@ -8,7 +8,8 @@ exports.addUser = async (data) => {
         const user = await User.find({ email : data.email });
 
         if(user){
-            return res.status(400).send({error: 'User already register'});
+           throw ('User already register');
+           return
         }
 
         const response = await User.create(data);
