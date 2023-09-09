@@ -31,6 +31,7 @@ exports.registerUser = async (userData) => {
         const newUser = new User({
             username: userData.username,
             email: userData.email,
+            number : userData.number,
             password: hashedPassword, // Store the hashed password in the database
         });
 
@@ -117,3 +118,54 @@ exports.updateUser = async (userId, updatedUserData) => {
         throw error;
     }
 };
+
+
+// Function to get user information by ID
+exports.getUserById = async (userId) => {
+    try {
+      // Find the user by ID in the database
+      const user = await User.findById(userId);
+  
+      if (!user) {
+        throw new Error('User not found');
+      }
+  
+      // Exclude sensitive data (e.g., password) from the user object
+      const userData = { ...user._doc };
+      delete userData.password;
+  
+      return userData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+
+
+// Function to change user password
+exports.changePassword = async (userId, currentPassword, newPassword) => {
+    try {
+      // Find the user by ID
+      const user = await User.findById(userId);
+  
+      if (!user) {
+        throw new Error('User not found');
+      }
+  
+      // Verify the current password
+      const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+  
+      if (!passwordMatch) {
+        throw new Error('Incorrect current password');
+      }
+  
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10); // Adjust the number of salt rounds as needed
+  
+      // Update the user's password in the database
+      user.password = hashedPassword;
+      await user.save();
+    } catch (error) {
+      throw error;
+    }
+  };
