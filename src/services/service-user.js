@@ -1,23 +1,119 @@
-const mongoose =  require('mongoose');
+
+const bcrypt = require('bcrypt');
+
+
 
 const User = require('../models/model-user');
 
-exports.addUser = async (data) => {
 
+//register user
+exports.registerUser = async (userData) => {
     try {
-        const user = await User.find({ email : data.email });
+        // Check if a user with the same email already exists
+        const existingUser = await User.findOne({ email: userData.email });
 
-        if(user){
-           throw ('User already register');
-           return
+        if (existingUser) {
+            throw new Error('User already registered with this email');
         }
 
-        const response = await User.create(data);
+        // Check password complexity rules
+        const passwordRegex = /^(?=.*[a-zA-Z\d@$!%*?&]).{6,}$/;
 
-        return response
+        if (!passwordRegex.test(userData.password)) {
+            throw new Error('Password does not meet the criteria (minimum 6 characters required).');
+        }
 
+
+        // Hash the user's password
+        const hashedPassword = await bcrypt.hash(userData.password, 10); // Adjust the number of salt rounds as needed
+
+        // Create a new user with the hashed password
+        const newUser = new User({
+            username: userData.username,
+            email: userData.email,
+            password: hashedPassword, // Store the hashed password in the database
+        });
+
+        const response = await newUser.save();
+
+        // Create a copy of the response object and remove the password property
+        const data = { ...response._doc };
+        delete data.password;
+
+        console.log("data ", data)
+
+        return data;
     } catch (error) {
-        throw (error)
+        // Handle any errors that occur during user registration
+        throw error;
     }
-
 }
+
+
+//login user
+exports.loginUser = async (email, password) => {
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            // User not found
+            throw new Error('USER_NOT_FOUND');
+        }
+
+        const passwordMatch = await bcrypt.compare(password, user.password);
+
+        if (!passwordMatch) {
+            // Invalid password
+            throw new Error('INVALID_CREDENTIALS');
+        }
+
+        // Return the authenticated user data (excluding the password)
+        const userData = { ...user._doc };
+        delete userData.password;
+
+        return userData;
+    } catch (error) {
+        // Handle different error scenarios
+        switch (error.message) {
+            case 'USER_NOT_FOUND':
+                throw new Error('User not found.');
+            case 'INVALID_CREDENTIALS':
+                throw new Error('Invalid credentials.');
+            default:
+                // Handle other errors, log them, and rethrow if needed
+                throw error;
+        }
+    }
+};
+
+
+
+// Function to update user profile
+exports.updateUser = async (userId, updatedUserData) => {
+    try {
+        // Define the update operation
+        const updateOperation = {
+            $set: updatedUserData, // Use the updated user data to set new values
+        };
+
+        // Find the user by ID and update their information
+        const updatedUser = await User.findOneAndUpdate({ _id: userId }, updateOperation, {
+            new: true, // Return the updated document
+        });
+
+        if (!updatedUser) {
+            throw new Error('User not found'); // Handle the case when the user is not found
+        }
+
+
+        // Return the authenticated user data (excluding the password)
+        const userData = { ...updatedUser._doc };
+        delete userData.password;
+
+
+        return userData;
+    } catch (error) {
+        // Handle different error scenarios
+        throw error;
+    }
+};

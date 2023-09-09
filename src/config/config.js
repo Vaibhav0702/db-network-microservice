@@ -5,7 +5,8 @@ const mongoURl = process.env.MONGODB_URL
 
 const connect = () => {
   return mongoose.connect(
-    mongoURl
+    mongoURl,
+    { useNewUrlParser: true, useUnifiedTopology: true }
   );
 };
 
